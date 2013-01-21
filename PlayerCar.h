@@ -9,7 +9,8 @@ public:
 	PlayerCar(BezierGame *bezier_game);
 	PlayerCar(BezierGame *bezier_game, std::string name);
 	void display(glutil::MatrixStack model_matrix);
-	void update();
+	void do_time_step();
+	void undo_time_step();
 	void forward();
 	void backward();
 	void right();

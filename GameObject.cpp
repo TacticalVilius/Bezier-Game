@@ -37,7 +37,15 @@ GameObject::~GameObject()
 	}
 }
 
-void GameObject::update()
+void GameObject::do_time_step()
+{
+	if (moving_object()) {
+		delete bsp_root_;
+		bsp_root_ = build_bsp_tree();
+	}
+}
+
+void GameObject::undo_time_step()
 {
 	if (moving_object()) {
 		delete bsp_root_;
@@ -202,20 +210,12 @@ void GameObject::move(glm::vec3 offset)
 {
 	position_ += offset;
 	update_transformation_matrix();
-	//for (unsigned int i = 0; i < polygons_.size(); ++i) {
-	//	polygons_[i]->translate(offset);
-	//}
-	//bsp_root_ = build_bsp_tree();
 }
 
 void GameObject::rotate(glm::mat4 rotation)
 {
 	rotation_.ApplyMatrix(rotation);
 	update_transformation_matrix();
-	//for (unsigned int i = 0; i < polygons_.size(); ++i) {
-	//	polygons_[i]->rotate(rotation);
-	//}
-	//bsp_root_ = build_bsp_tree();
 }
 
 void GameObject::scale(float factor)
@@ -224,16 +224,6 @@ void GameObject::scale(float factor)
 	center_ *= factor;
 	radius_ *= factor;
 	update_transformation_matrix();
-	//for (unsigned int i = 0; i < polygons_.size(); ++i) {
-	//	polygons_[i]->scale(factor);
-	//}
-	//bsp_root_ = build_bsp_tree();
-}
-
-void GameObject::undo_time_step()
-{
-	move(-get_velocity());
-	update();
 }
 
 void GameObject::update_transformation_matrix()

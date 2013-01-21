@@ -35,7 +35,7 @@ private:
 	glm::vec3 resolve_camera_position();
 	glm::mat4 calc_world_to_camera_matrix(const glm::vec3 &camera_position, const glm::vec3 &camera_target, const glm::vec3 &up_vector);
 	void add_game_object(GameObject *game_object);
-	void check_collision();
+	bool check_collision();
 	bool check_bounding_spheres(GameObject *first_object, GameObject *second_object);
 	bool check_collision_bsp(GameObject *first_object, GameObject *second_object);
 	bool objects_intersect_bsp(BSP_Node *bsp_node, GameObject *object);
@@ -43,7 +43,8 @@ private:
 	bool polygons_intersect(PolygonFace *first_polygon, PolygonFace *second_polygon);
 	bool axis_separates_polygons(glm::vec3 &separating_direction, PolygonFace *first_polygon, PolygonFace *second_polygon);
 	bool polygon_lies_in_plane(PolygonFace *polygon, float a, float b, float c, float d);
-	void resolve_collision_moving(GameObject *first_object, GameObject *second_object);
+	bool resolve_collision_moving(GameObject *first_object, GameObject *second_object);
+	void update_velocities_after_collision(GameObject *first_object, GameObject *second_object);
 
 	std::vector<GameObject *> moving_game_objects_;
 	std::vector<GameObject *> non_moving_game_objects_;

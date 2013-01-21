@@ -213,15 +213,19 @@ glm::mat4 BezierGame::calc_world_to_camera_matrix(const glm::vec3 &camera_positi
 	return rot_matrix * trans_matrix;
 }
 
+bool no_more_display = false;
+
 void BezierGame::display()
 {
+	if (no_more_display) return;
 	for (unsigned int i = 0; i < moving_game_objects_.size(); ++i) {
-		moving_game_objects_[i]->update();
+		moving_game_objects_[i]->do_time_step();
 	}
 	for (unsigned int i = 0; i < non_moving_game_objects_.size(); ++i) {
-		non_moving_game_objects_[i]->update();
+		non_moving_game_objects_[i]->do_time_step();
 	}
-	check_collision();
+	if (!check_collision())
+		no_more_display = true;
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClearDepth(1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -483,8 +487,9 @@ bool BezierGame::check_bounding_spheres(GameObject *first_object, GameObject *se
 	return false;
 }
 
-void BezierGame::check_collision()
+bool BezierGame::check_collision()
 {
+	bool result = true;
 	//std::cout << "check collision function begin" << std::endl;
 	for (unsigned int i = 0; i < moving_game_objects_.size(); ++i) {
 		if (moving_game_objects_[i]->bounding_sphere_check()) {
@@ -493,7 +498,7 @@ void BezierGame::check_collision()
 					if (check_bounding_spheres(moving_game_objects_[i], moving_game_objects_[j])) {
 						if (check_collision_bsp(moving_game_objects_[i], moving_game_objects_[j])) {
 							std::cout << "Crash " << moving_game_objects_[i]->get_name() << " " << moving_game_objects_[j]->get_name() << std::endl;
-							resolve_collision_moving(moving_game_objects_[i], moving_game_objects_[j]);
+							result = resolve_collision_moving(moving_game_objects_[i], moving_game_objects_[j]);
 						}
 						else {
 							std::cout << "No crash " << moving_game_objects_[i]->get_name() << " " << moving_game_objects_[j]->get_name() << std::endl;
@@ -515,24 +520,103 @@ void BezierGame::check_collision()
 			}
 		}
 	}
+	return result;
 }
 
-void BezierGame::resolve_collision_moving(GameObject *first_object, GameObject *second_object)
+bool BezierGame::resolve_collision_moving(GameObject *first_object, GameObject *second_object)
 {
 	first_object->undo_time_step();
+	if (check_collision_bsp(first_object, second_object)) {
+		first_object->do_time_step();
+		second_object->undo_time_step();
+		if (check_collision_bsp(first_object, second_object)) {
+			first_object->undo_time_step();
+		}
+	}
+	update_velocities_after_collision(first_object, second_object);
+	return true;
+	/*
 	if (!check_collision_bsp(first_object, second_object)) {
-		std::cout << first_object->get_name() << " crashed into " << second_object->get_name() << std::endl;
+		//std::cout << first_object->get_name() << " crashed into " << second_object->get_name() << std::endl;
+		return true;
 	}
 	else {
-		first_object->update();
+		first_object->do_time_step();
 		second_object->undo_time_step();
 		if (!check_collision_bsp(first_object, second_object)) {
-			std::cout << second_object->get_name() << " crashed into " << first_object->get_name() << std::endl;
+			//std::cout << second_object->get_name() << " crashed into " << first_object->get_name() << std::endl;
+			return true;
 		}
 		else {
-			std::cout << "THIS CRASH IS TOO LONG!!" << std::endl;
+			first_object->undo_time_step();
+			if (!check_collision_bsp(first_object, second_object)) {
+				//std::cout << first_object->get_name() << " and " << second_object->get_name() << " crashed into eachother." << std::endl;
+				return true;
+			}
+			else {
+				std::cout << "THIS CRASH IS TOO LONG!!" << std::endl;
+				return true;
+			}
 		}
 	}
+	return true;
+	*/
+}
+
+void BezierGame::update_velocities_after_collision(GameObject *first_object, GameObject *second_object)
+{
+
+	glm::vec3 new_second_obj_pos = second_object->get_position() - first_object->get_position();
+	glm::vec3 new_first_obj_vel = first_object->get_velocity() - second_object->get_velocity();
+
+	float distance = glm::length(new_second_obj_pos);
+	float phi = acosf(new_second_obj_pos.z / distance);
+	float theta = (new_second_obj_pos.x == 0.0f && new_second_obj_pos.y == 0.0f) ? 0.0f : atan2f(new_second_obj_pos.y, new_second_obj_pos.x);
+	float sin_theta = sinf(theta);
+	float cos_theta = cosf(theta);
+	float sin_phi = sinf(phi);
+	float cos_phi = cosf(phi);
+
+	glm::vec3 first_obj_vel_transf;
+	first_obj_vel_transf.x = cos_phi * cos_theta * new_first_obj_vel.x + cos_phi * sin_theta * new_first_obj_vel.y - sin_phi * new_first_obj_vel.z;
+	first_obj_vel_transf.y = cos_theta * new_first_obj_vel.y - sin_theta * new_first_obj_vel.x;
+	first_obj_vel_transf.z = sin_phi * cos_theta * new_first_obj_vel.x + sin_phi * sin_theta * new_first_obj_vel.y + cos_phi * new_first_obj_vel.z;
+	float vel_z_norm = first_obj_vel_transf.z / glm::length(first_obj_vel_transf);
+	if (vel_z_norm > 1.0f) {
+		vel_z_norm = 1.0f;
+	}
+	else if (vel_z_norm < -1.0f) {
+		vel_z_norm = -1.0f;
+	}
+	float phi_vel = acosf(vel_z_norm);
+	float theta_vel = (first_obj_vel_transf.x == 0.0f && first_obj_vel_transf.y == 0.0f) ? 0.0f : atan2f(first_obj_vel_transf.y, first_obj_vel_transf.x);
+
+	float impact_par = glm::length(second_object->get_position() - first_object->get_position()) * sinf(phi_vel) / (first_object->get_radius() + second_object->get_radius());
+
+	float alpha = asinf(-impact_par);
+	float sin_beta = sinf(theta_vel);
+	float cos_beta = cosf(theta_vel);
+
+	float mass_rel = second_object->get_mass() / first_object->get_mass();
+	float a = tanf(phi_vel + alpha);
+	float dz = 2 * (first_obj_vel_transf.z + a * (cos_beta * first_obj_vel_transf.x + sin_beta * first_obj_vel_transf.y)) / ((1.0f + a * a) * (1.0f + mass_rel));
+	glm::vec3 second_obj_vel_transf;
+	second_obj_vel_transf.x = a * cos_beta * dz;
+	second_obj_vel_transf.y = a * sin_beta * dz;
+	second_obj_vel_transf.z = dz;
+	first_obj_vel_transf -= (mass_rel * second_obj_vel_transf);
+
+	glm::vec3 first_obj_vel;
+	first_obj_vel.x = cos_phi * cos_theta * first_obj_vel_transf.x - sin_theta * first_obj_vel_transf.y + sin_phi * cos_theta * first_obj_vel_transf.z;
+	first_obj_vel.y = cos_phi * sin_theta * first_obj_vel_transf.x + cos_theta * first_obj_vel_transf.y + sin_phi * sin_theta * first_obj_vel_transf.z;
+	first_obj_vel.z = cos_phi * first_obj_vel_transf.z - sin_phi * first_obj_vel_transf.x;
+	glm::vec3 second_obj_vel;
+	second_obj_vel.x = cos_phi * cos_theta * second_obj_vel_transf.x - sin_theta * second_obj_vel_transf.y + sin_phi * cos_theta * second_obj_vel_transf.z;
+	second_obj_vel.y = cos_phi * sin_theta * second_obj_vel_transf.x + cos_theta * second_obj_vel_transf.y + sin_phi * sin_theta * second_obj_vel_transf.z;
+	second_obj_vel.z = cos_phi * second_obj_vel_transf.z - sin_phi * second_obj_vel_transf.x;
+
+	first_object->set_velocity(first_obj_vel);
+	second_object->set_velocity(second_obj_vel);
 }
 
 glm::vec3 BezierGame::get_dir_to_light()

@@ -29,12 +29,12 @@ public:
 	GameObject(BezierGame *bezier_game, std::string name);
 	~GameObject();
 	virtual void display(glutil::MatrixStack model_matrix) = 0;
-	virtual void update();
+	virtual void do_time_step();
+	virtual void undo_time_step();
 
 	virtual void move(glm::vec3 offset);
 	virtual void rotate(glm::mat4 rotation);
 	virtual void scale(float factor);
-	virtual void undo_time_step();
 
 	bool moving_object();
 	bool bounding_sphere_check();

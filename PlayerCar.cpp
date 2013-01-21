@@ -23,11 +23,11 @@ void PlayerCar::initialize()
 	initialize_vertex_array_objects();
 
 	direction_ = glm::vec3(0.0f, 0.0f, 1.0f);
-	//speed_ = 0.0f;
 	up_direction_ = glm::vec3(0.0f, 1.0f, 0.0f);
 
 	center_ = glm::vec3(3.0f, 1.5f, 6.0f);
 	radius_ = 6.0f;
+	mass_ = 100.0f;
 	moving_object_ = true;
 	bounding_sphere_check_ = true;
 	bsp_root_ = build_bsp_tree();
@@ -58,28 +58,30 @@ void PlayerCar::display(glutil::MatrixStack model_matrix)
 	glUseProgram(0);
 }
 
-void PlayerCar::update()
+void PlayerCar::do_time_step()
 {
-	//move(direction_ * speed_);
 	move(velocity_);
-	GameObject::update();
+	GameObject::do_time_step();
+}
+
+void PlayerCar::undo_time_step()
+{
+	move(-velocity_);
+	GameObject::undo_time_step();
 }
 
 void PlayerCar::forward()
 {
-	//speed_ = 0.001f;
 	update_velocity(direction_ * 0.001f);
 }
 
 void PlayerCar::backward()
 {
-	//speed_ = 0.0f;
 	update_velocity(-direction_ * 0.001f);
 }
 
 void PlayerCar::right()
 {
-	//if (speed_ == 0.0f) return;
 	glm::vec3 prev_direction = direction_;
 	direction_ += (0.001f * 10 * glm::normalize(glm::cross(up_direction_, direction_)));
 	direction_ = glm::normalize(direction_);
@@ -89,7 +91,6 @@ void PlayerCar::right()
 
 void PlayerCar::left()
 {
-	//if (speed_ == 0.0f) return;
 	glm::vec3 prev_direction = direction_;
 	direction_ += (0.001f * 10 * glm::normalize(glm::cross(direction_, up_direction_)));
 	direction_ = glm::normalize(direction_);
